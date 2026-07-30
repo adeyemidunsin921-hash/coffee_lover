@@ -1,7 +1,7 @@
 import os
 import logging
 import random
-import json
+import sys
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -15,8 +15,34 @@ logger = logging.getLogger(__name__)
 
 # Get bot token from environment variable
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
+
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN environment variable not set!")
+    error_msg = """
+❌ ERROR: BOT_TOKEN environment variable not set!
+
+Please add it in Railway:
+1. Go to your Railway project dashboard
+2. Click on the "Variables" tab
+3. Click "Add Variable"
+4. Enter: BOT_TOKEN = your_token_from_botfather
+5. Click "Deploy" to redeploy
+
+For local testing:
+Create a .env file with:
+BOT_TOKEN=your_token_here
+"""
+    print(error_msg)
+    logger.error("BOT_TOKEN environment variable not set!")
+    sys.exit(1)
+
+# Get optional environment variables
+BOT_NAME = os.environ.get('BOT_NAME', 'Coffee Lover Bot')
+BOT_OWNER = os.environ.get('BOT_OWNER', 'Unknown')
+
+print(f"✅ Bot Token loaded successfully!")
+print(f"🤖 Bot Name: {BOT_NAME}")
+print(f"📱 Username: @coffee_lover298_bot")
+print(f"👤 Owner: {BOT_OWNER}")
 
 # Coffee data
 COFFEE_QUOTES = [
@@ -191,9 +217,6 @@ COFFEE_FACTS = [
     "🧊 Cold brew coffee has 67% less acid than hot coffee!"
 ]
 
-# Store user data (in production, use a database)
-user_data = {}
-
 # -------------------- COMMAND HANDLERS --------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -226,7 +249,6 @@ I'm your ultimate coffee companion! Here's what I can do:
 /coffee - Get a random coffee recommendation
 /quote - Get a motivational coffee quote
 /menu - See full coffee menu with prices
-/order - Place a coffee order 🚧
 /brew <type> - Get brewing instructions
 /facts - Interesting coffee facts
 /fact - Random coffee trivia
@@ -269,7 +291,6 @@ Here's everything I can do for you:
 • `/coffee` - Get a random coffee recommendation
 • `/quote` - Get a motivational coffee quote  
 • `/menu` - Browse full coffee menu with prices
-• `/order` - Place a coffee order (coming soon)
 • `/brew <type>` - Get brewing instructions
 • `/facts` - List all coffee facts
 • `/fact` - Random coffee fact
@@ -327,10 +348,6 @@ Your ultimate coffee companion! Whether you're a coffee connoisseur or just star
 • 15+ coffee facts
 • 10+ brewing guides
 
-**🔗 Links:**
-• [Source Code](https://github.com/yourusername/coffee-lover-bot)
-• [Report Issues](https://github.com/yourusername/coffee-lover-bot/issues)
-
 ☕ **Keep calm and drink coffee!**
 """
     await update.message.reply_text(about_text, parse_mode='Markdown', disable_web_page_preview=True)
@@ -340,17 +357,6 @@ async def coffee_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     coffee = random.choice(COFFEE_TYPES)
     quote = random.choice(COFFEE_QUOTES)
     
-    # Check if it's a good time for this coffee
-    hour = datetime.now().hour
-    if hour < 12 and coffee['name'] in ['Cold Brew', 'Iced Coffee', 'Frappuccino']:
-        time_note = "🌅 Great choice for a morning boost!"
-    elif hour >= 18 and coffee['name'] in ['Espresso', 'Turkish Coffee']:
-        time_note = "🌙 Strong choice for the evening!"
-    elif 12 <= hour < 17 and coffee['name'] in ['Cappuccino', 'Latte', 'Flat White']:
-        time_note = "☀️ Perfect afternoon pick-me-up!"
-    else:
-        time_note = "☕ Perfect anytime coffee!"
-    
     coffee_text = f"""
 ☕ **Today's Coffee Recommendation:**
 
@@ -359,8 +365,6 @@ async def coffee_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📝 {coffee['description']}
 
 {quote}
-
-{time_note}
 
 💡 **Did you know?**
 Type `/brew {coffee['name'].lower()}` to learn how to make it!
@@ -383,7 +387,7 @@ async def quote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show full coffee menu."""
-    hot_coffees = [c for c in COFFEE_TYPES if c['emoji'] != '❄️' and c['emoji'] != '🧊' and c['emoji'] != '🍹']
+    hot_coffees = [c for c in COFFEE_TYPES if c['emoji'] not in ['❄️', '🧊', '🍹']]
     cold_coffees = [c for c in COFFEE_TYPES if c['emoji'] in ['❄️', '🧊', '🍹']]
     specialty = [c for c in COFFEE_TYPES if c['name'] in ['Turkish Coffee', 'Irish Coffee']]
     
@@ -406,8 +410,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         menu_text += f"• {coffee['emoji']} {coffee['name']:15} {coffee['price']:>8}\n"
     
     menu_text += """
-**
-🍰 Food Items:**
+**🍰 Food Items:**
 • 🥐 Croissant ............ $3.00
 • 🧁 Muffin .............. $3.50
 • 🍰 Cake Slice ........... $4.00
@@ -498,29 +501,6 @@ async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fact = random.choice(COFFEE_FACTS)
     await update.message.reply_text(f"☕ **Coffee Fact:**\n\n{fact}", parse_mode='Markdown')
 
-async def order_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Place a coffee order (placeholder)."""
-    order_text = """
-☕ **Order System - Coming Soon!**
-
-We're working on making it easy to order coffee!
-
-**🚧 Features Coming:**
-• Menu browsing
-• Customization options
-• Order tracking
-• Payment integration
-• Delivery status
-
-**📋 For now, try these:**
-• `/menu` - Browse our full menu
-• `/coffee` - Get recommendations
-• `/brew` - Learn to make it yourself!
-
-☕ Stay tuned for updates!
-"""
-    await update.message.reply_text(order_text, parse_mode='Markdown')
-
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user feedback."""
     if not context.args:
@@ -537,7 +517,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     feedback = ' '.join(context.args)
     user = update.effective_user
     
-    # Log feedback (in production, save to database)
+    # Log feedback
     logger.info(f"Feedback from {user.username or user.first_name}: {feedback}")
     
     await update.message.reply_text(
@@ -649,42 +629,50 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     """Start the bot."""
+    print("=" * 50)
     print("☕ Coffee Lover Bot is starting...")
-    print("🤖 Bot: @coffee_lover298_bot")
+    print(f"🤖 Bot: @coffee_lover298_bot")
     print(f"🔄 Status: Online")
+    print(f"📱 Check it out: https://t.me/coffee_lover298_bot")
+    print("=" * 50)
     
-    # Create the Application
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Add command handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("about", about_command))
-    application.add_handler(CommandHandler("coffee", coffee_command))
-    application.add_handler(CommandHandler("quote", quote_command))
-    application.add_handler(CommandHandler("menu", menu_command))
-    application.add_handler(CommandHandler("brew", brew_command))
-    application.add_handler(CommandHandler("facts", facts_command))
-    application.add_handler(CommandHandler("fact", fact_command))
-    application.add_handler(CommandHandler("order", order_command))
-    application.add_handler(CommandHandler("feedback", feedback_command))
-    
-    # Add callback query handler for buttons
-    application.add_handler(CallbackQueryHandler(button_callback))
-    
-    # Add handler for messages
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Add handler for unknown commands
-    application.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
-    
-    # Add error handler
-    application.add_error_handler(error_handler)
-    
-    # Start the Bot
-    print("☕ Bot is now running!")
-    print("📱 Check it out: https://t.me/coffee_lover298_bot")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        # Create the Application
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+        # Add command handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("about", about_command))
+        application.add_handler(CommandHandler("coffee", coffee_command))
+        application.add_handler(CommandHandler("quote", quote_command))
+        application.add_handler(CommandHandler("menu", menu_command))
+        application.add_handler(CommandHandler("brew", brew_command))
+        application.add_handler(CommandHandler("facts", facts_command))
+        application.add_handler(CommandHandler("fact", fact_command))
+        application.add_handler(CommandHandler("feedback", feedback_command))
+        
+        # Add callback query handler for buttons
+        application.add_handler(CallbackQueryHandler(button_callback))
+        
+        # Add handler for messages
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        
+        # Add handler for unknown commands
+        application.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
+        
+        # Add error handler
+        application.add_error_handler(error_handler)
+        
+        # Start the Bot
+        print("☕ Bot is now running and ready for commands!")
+        print("=" * 50)
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+    except Exception as e:
+        print(f"❌ Error starting bot: {e}")
+        logger.error(f"Error starting bot: {e}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
