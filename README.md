@@ -36,7 +36,6 @@ A feature-rich Telegram bot for coffee enthusiasts!
 | `/brew <type>` | Brewing instructions |
 | `/facts` | All coffee facts |
 | `/fact` | Random coffee fact |
-| `/order` | Place an order (coming soon) |
 | `/feedback <message>` | Send feedback |
 
 ## 🍵 Coffee Types Available
